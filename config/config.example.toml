@@ -1,0 +1,19 @@
+default_account = "exmail-main"
+
+[accounts.exmail-main]
+email = "your.name@example.com"
+use_ssl = true
+
+[accounts.exmail-main.imap]
+host = "imap.exmail.qq.com"
+port = 993
+
+[accounts.exmail-main.smtp]
+host = "smtp.exmail.qq.com"
+port = 465
+
+[accounts.exmail-main.auth]
+raw = "your_app_password_or_token"
+
+[quirks]
+provider = "exmail"

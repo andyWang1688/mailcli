@@ -1,0 +1,1 @@
+"""Mail CLI package scaffold."""

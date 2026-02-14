@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mailcli"
+version = "0.1.0a0"
+description = "Mail CLI scaffold targeting Exmail IMAP/SMTP workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Mail CLI Contributors" }
+]
+dependencies = [
+  "click>=8.1.0",
+  "tomli>=2.0.0; python_version<'3.11'",
+]
+
+[project.scripts]
+mailcli = "mailcli.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
