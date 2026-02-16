@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mailcli"
+name = "exmail-cli"
 version = "0.1.0a0"
 description = "Mail CLI scaffold targeting Exmail IMAP/SMTP workflows"
 readme = "README.md"
