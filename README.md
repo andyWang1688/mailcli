@@ -6,7 +6,10 @@ Mail CLI - An open-source email command-line tool for managing emails from the t
 
 - Chinese product standard doc: `docs/README.zh-CN.md`
 - Chinese command reference: `docs/COMMANDS.zh-CN.md`
-- Bug list template: `docs/BUGLIST.zh-CN.md`
+- Release guide (Chinese): `docs/RELEASING.zh-CN.md`
+- Changelog: `CHANGELOG.md`
+- Requirements issues: `https://github.com/andyWang1688/mailcli/issues?q=is%3Aissue+is%3Aopen+label%3Arequirement`
+- Bug issues: `https://github.com/andyWang1688/mailcli/issues?q=is%3Aissue+label%3Abug`
 
 ## Quick Start
 
@@ -17,10 +20,13 @@ Preferred installation method: `pip` direct install.
 #### Option A: Install from PyPI (target release channel)
 
 ```bash
-pip install mailcli
+pip install exmail-cli
 ```
 
 After publishing to PyPI, this is the recommended way for all users.
+The installed CLI command remains `mailcli`.
+
+Publishing strategy: merge to `main` does not publish; pushing a version tag like `v0.1.0` publishes to PyPI.
 
 #### Option B: Install from local source (current development stage)
 
@@ -79,7 +85,6 @@ Detailed command guide (Chinese):
 
 ## Architecture
 
-- `docs/requirements/`: source requirements
 - `docs/plan/`: execution plans and milestones
 - `docs/architecture/`: architecture and directory conventions
 - `src/mailcli/core/`: business logic

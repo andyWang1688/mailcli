@@ -1,0 +1,77 @@
+name: Publish to PyPI
+
+# 仅在推送版本标签时触发，例如 v0.1.0
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    # 在 GitHub 托管的 Ubuntu 运行环境中执行
+    runs-on: ubuntu-latest
+    permissions:
+      # 需要写仓库内容权限，用于创建/更新 GitHub Release
+      contents: write
+      # 需要 OIDC 令牌权限，供发布动作进行认证流程
+      id-token: write
+
+    steps:
+      # 1) 检出仓库代码到运行环境
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2) 准备构建/发布使用的 Python 环境
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # 3) 安全校验：tag 版本必须与 pyproject.toml 中版本一致
+      - name: Verify tag matches pyproject version
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          if not tag.startswith("v"):
+              raise SystemExit(f"Tag must start with v, got: {tag}")
+
+          tag_version = tag[1:]
+          pyproject = Path("pyproject.toml")
+          data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+          project_version = data["project"]["version"]
+
+          if tag_version != project_version:
+              raise SystemExit(
+                  f"Tag version ({tag_version}) != pyproject version ({project_version})"
+              )
+
+          print(f"Version check passed: {project_version}")
+          PY
+
+      # 4) 构建 wheel/sdist，并校验包元数据
+      - name: Build package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+
+      # 5) 上传构建产物到 PyPI
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      # 6) 基于当前 tag 创建 GitHub Release，并附加 dist 文件
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/*

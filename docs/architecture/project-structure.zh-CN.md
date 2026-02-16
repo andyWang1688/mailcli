@@ -7,11 +7,13 @@ mailcli/
   docs/
     architecture/
       project-structure.zh-CN.md
+    COMMANDS.zh-CN.md
+    RELEASING.zh-CN.md
+    README.zh-CN.md
+    TESTING.md
     plan/
       roadmap.zh-CN.md
       v0.1-execution-plan.zh-CN.md
-    requirements/
-      mailcli-requirements.zh-CN.md
   src/
     mailcli/
       __init__.py
@@ -26,7 +28,7 @@ mailcli/
 
 ## 目录职责
 
-- `docs/requirements/`：需求原文与版本化需求文档。
+- `GitHub Issues`：需求与 BUG 的唯一维护入口。
 - `docs/plan/`：阶段计划、里程碑和风险管理。
 - `docs/architecture/`：架构约定、模块边界、目录规范。
 - `src/mailcli/`：可执行代码入口和业务实现目录。

@@ -14,8 +14,12 @@
 ### 方式 A：从 PyPI 安装（发布后推荐）
 
 ```bash
-pip install mailcli
+pip install exmail-cli
 ```
+
+说明：安装后命令名仍然是 `mailcli`。
+
+发布策略：合并到 `main` 不会自动发布；仅在推送版本 tag（如 `v0.1.0`）后自动发布到 PyPI。
 
 ### 方式 B：从本地源码安装（当前开发阶段）
 
@@ -65,6 +69,8 @@ mailcli --output json attachment download -a exmail-main -f INBOX -o ./downloads
 ## 5. 功能说明
 
 - 详细命令说明：`docs/COMMANDS.zh-CN.md`
-- 需求文档：`docs/requirements/mailcli-requirements.zh-CN.md`
+- 发布流程：`docs/RELEASING.zh-CN.md`
+- 更新记录：`CHANGELOG.md`
 - 测试报告：`docs/TESTING.md`
-- Bug 记录：`docs/BUGLIST.zh-CN.md`
+- 需求管理（Issues）：`https://github.com/andyWang1688/mailcli/issues?q=is%3Aissue+is%3Aopen+label%3Arequirement`
+- BUG 管理（Issues）：`https://github.com/andyWang1688/mailcli/issues?q=is%3Aissue+label%3Abug`
