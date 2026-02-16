@@ -6,13 +6,11 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-02-14
+
 ### Added
 - PyPI release workflow triggered by version tags (`v*`).
 - Automatic GitHub Release creation with built package artifacts attached.
-
-## [0.1.0a0] - 2026-02-14
-
-### Added
 - Initial EmailCLI scaffolding with package entrypoint `mailcli`.
 - Core command groups: `account`, `folder`, `envelope`, `message`, `attachment`.
 - Exmail-focused IMAP/SMTP workflows for list/search/read/send/attachment download.
