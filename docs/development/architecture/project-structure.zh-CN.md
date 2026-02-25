@@ -5,15 +5,15 @@ mailcli/
   config/
     config.example.toml
   docs/
-    architecture/
-      project-structure.zh-CN.md
-    COMMANDS.zh-CN.md
-    RELEASING.zh-CN.md
-    README.zh-CN.md
-    TESTING.md
-    plan/
-      roadmap.zh-CN.md
-      v0.1-execution-plan.zh-CN.md
+    user/
+      README.zh-CN.md
+      COMMANDS.zh-CN.md
+    development/
+      README.zh-CN.md
+      git-workflow.zh-CN.md
+      RELEASING.zh-CN.md
+      architecture/
+        project-structure.zh-CN.md
   src/
     mailcli/
       __init__.py
@@ -29,8 +29,8 @@ mailcli/
 ## 目录职责
 
 - `GitHub Issues`：需求与 BUG 的唯一维护入口。
-- `docs/plan/`：阶段计划、里程碑和风险管理。
-- `docs/architecture/`：架构约定、模块边界、目录规范。
+- `docs/user/`：面向终端用户的安装、配置与命令说明。
+- `docs/development/`：面向开发者的流程与架构文档（Git 规范、发布、架构）。
 - `src/mailcli/`：可执行代码入口和业务实现目录。
 - `tests/`：单元测试与集成测试。
 - `config/`：示例配置与本地开发模板。
