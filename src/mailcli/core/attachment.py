@@ -33,8 +33,6 @@ def attachment_download(
 ) -> dict[str, Any]:
     """Download an attachment."""
     import email
-    import imaplib
-    import smtplib
 
     config = get_config()
     account = config.get_account(account_name)
@@ -43,13 +41,7 @@ def attachment_download(
     adapter.connect()
 
     try:
-        adapter.select_folder(folder)
-        typ, data = adapter.connection.fetch(msg_id, "(RFC822)")
-
-        if typ != "OK":
-            raise ConnectionError(f"Failed to fetch message {msg_id}")
-
-        raw_email = data[0][1]
+        raw_email = adapter.fetch_message_raw(msg_id, folder)
         msg = email.message_from_bytes(raw_email)
 
         output_path = Path(output_dir)

@@ -8,11 +8,12 @@ import socket
 import ssl
 import re
 import base64
+import subprocess
 from dataclasses import dataclass
 from typing import Any
 
 from .config import AccountConfig
-from .errors import AuthenticationError, ConnectionError, TimeoutError
+from .errors import AuthenticationError, ConfigError, ConnectionError, TimeoutError
 
 
 @dataclass
@@ -48,7 +49,183 @@ class IMAPAdapter:
         server_folder = (
             self._encode_imap_utf7(folder) if self._has_non_ascii(folder) else folder
         )
-        self.connection.select(server_folder)
+        typ, _ = self.connection.select(server_folder)
+        if typ != "OK":
+            raise ConnectionError(f"Folder '{folder}' not found or not accessible")
+
+    def create_folder(self, folder: str) -> dict[str, Any]:
+        """Create a folder."""
+        if not self.connection:
+            raise ConnectionError("Not connected to IMAP server")
+
+        server_folder = (
+            self._encode_imap_utf7(folder) if self._has_non_ascii(folder) else folder
+        )
+        typ, data = self.connection.create(server_folder)
+        if typ != "OK":
+            detail = self._decode_imap_status(data)
+            raise ConnectionError(f"Failed to create folder '{folder}': {detail}")
+        return {"status": "ok", "folder": folder, "action": "create"}
+
+    def delete_folder(self, folder: str) -> dict[str, Any]:
+        """Delete a folder."""
+        if not self.connection:
+            raise ConnectionError("Not connected to IMAP server")
+
+        server_folder = (
+            self._encode_imap_utf7(folder) if self._has_non_ascii(folder) else folder
+        )
+        typ, data = self.connection.delete(server_folder)
+        if typ != "OK":
+            detail = self._decode_imap_status(data)
+            raise ConnectionError(f"Failed to delete folder '{folder}': {detail}")
+        return {"status": "ok", "folder": folder, "action": "delete"}
+
+    def expunge_folder(
+        self, folder: str = "INBOX", purge: bool = False
+    ) -> dict[str, Any]:
+        """Expunge deleted messages, optionally purge all messages."""
+        if not self.connection:
+            raise ConnectionError("Not connected to IMAP server")
+
+        self.select_folder(folder)
+        if purge:
+            typ, data = self.connection.store("1:*", "+FLAGS", "(\\Deleted)")
+            if typ != "OK":
+                detail = self._decode_imap_status(data)
+                raise ConnectionError(f"Failed to mark messages as deleted: {detail}")
+
+        typ, data = self.connection.expunge()
+        if typ != "OK":
+            detail = self._decode_imap_status(data)
+            raise ConnectionError(f"Failed to expunge folder '{folder}': {detail}")
+
+        removed = len(data or [])
+        return {
+            "status": "ok",
+            "folder": folder,
+            "action": "purge" if purge else "expunge",
+            "removed": removed,
+        }
+
+    def fetch_message_raw(self, msg_id: str, folder: str = "INBOX") -> bytes:
+        """Fetch raw message bytes by ID."""
+        if not self.connection:
+            raise ConnectionError("Not connected to IMAP server")
+
+        self.select_folder(folder)
+        typ, data = self.connection.fetch(msg_id, "(RFC822)")
+        if typ != "OK" or not data or not isinstance(data[0], tuple):
+            raise ConnectionError(f"Failed to fetch message {msg_id}")
+
+        raw_email = data[0][1]
+        if not isinstance(raw_email, bytes):
+            raise ConnectionError(f"Unexpected message payload for {msg_id}")
+        return raw_email
+
+    def copy_message(
+        self, msg_id: str, destination_folder: str, source_folder: str = "INBOX"
+    ) -> dict[str, Any]:
+        """Copy message to destination folder."""
+        if not self.connection:
+            raise ConnectionError("Not connected to IMAP server")
+
+        self.select_folder(source_folder)
+        destination = (
+            self._encode_imap_utf7(destination_folder)
+            if self._has_non_ascii(destination_folder)
+            else destination_folder
+        )
+        typ, data = self.connection.copy(msg_id, destination)
+        if typ != "OK":
+            detail = self._decode_imap_status(data)
+            raise ConnectionError(
+                f"Failed to copy message {msg_id} to '{destination_folder}': {detail}"
+            )
+        return {
+            "status": "ok",
+            "id": msg_id,
+            "from_folder": source_folder,
+            "to_folder": destination_folder,
+            "action": "copy",
+        }
+
+    def move_message(
+        self, msg_id: str, destination_folder: str, source_folder: str = "INBOX"
+    ) -> dict[str, Any]:
+        """Move message by copy + delete + expunge."""
+        copy_result = self.copy_message(msg_id, destination_folder, source_folder)
+        self.delete_message(msg_id, source_folder, expunge=True)
+        return {
+            "status": "ok",
+            "id": msg_id,
+            "from_folder": source_folder,
+            "to_folder": destination_folder,
+            "action": "move",
+            "copied": copy_result["status"] == "ok",
+        }
+
+    def delete_message(
+        self, msg_id: str, folder: str = "INBOX", expunge: bool = True
+    ) -> dict[str, Any]:
+        """Mark message deleted and optionally expunge."""
+        if not self.connection:
+            raise ConnectionError("Not connected to IMAP server")
+
+        self.select_folder(folder)
+        typ, data = self.connection.store(msg_id, "+FLAGS", "(\\Deleted)")
+        if typ != "OK":
+            detail = self._decode_imap_status(data)
+            raise ConnectionError(f"Failed to mark message {msg_id} deleted: {detail}")
+
+        expunged = False
+        if expunge:
+            typ, data = self.connection.expunge()
+            if typ != "OK":
+                detail = self._decode_imap_status(data)
+                raise ConnectionError(
+                    f"Failed to expunge deleted message {msg_id}: {detail}"
+                )
+            expunged = True
+
+        return {
+            "status": "ok",
+            "id": msg_id,
+            "folder": folder,
+            "action": "delete",
+            "expunged": expunged,
+        }
+
+    def update_flags(
+        self,
+        msg_id: str,
+        flags: list[str],
+        action: str = "add",
+        folder: str = "INBOX",
+    ) -> dict[str, Any]:
+        """Add or remove IMAP flags."""
+        if not self.connection:
+            raise ConnectionError("Not connected to IMAP server")
+        if action not in {"add", "remove"}:
+            raise ValueError("action must be 'add' or 'remove'")
+
+        imap_flags = [self._normalize_flag(flag) for flag in flags]
+        self.select_folder(folder)
+        operator = "+FLAGS" if action == "add" else "-FLAGS"
+        typ, data = self.connection.store(msg_id, operator, f"({' '.join(imap_flags)})")
+        if typ != "OK":
+            detail = self._decode_imap_status(data)
+            raise ConnectionError(
+                f"Failed to {action} flags on message {msg_id}: {detail}"
+            )
+
+        return {
+            "status": "ok",
+            "id": msg_id,
+            "folder": folder,
+            "action": action,
+            "flags": flags,
+        }
 
     def list_folders(self) -> list[dict[str, str]]:
         """List available folders from IMAP server."""
@@ -135,32 +312,14 @@ class IMAPAdapter:
 
     def read_message(self, msg_id: str, folder: str = "INBOX") -> dict[str, Any]:
         """Read a message by ID."""
-        if not self.connection:
-            raise ConnectionError("Not connected to IMAP server")
-
-        self.select_folder(folder)
-        typ, data = self.connection.fetch(msg_id, "(RFC822)")
-
-        if typ != "OK":
-            raise ConnectionError(f"Failed to fetch message {msg_id}")
-
-        raw_email = data[0][1]
+        raw_email = self.fetch_message_raw(msg_id, folder)
         return self._parse_message(raw_email, msg_id)
 
     def get_attachments(
         self, msg_id: str, folder: str = "INBOX"
     ) -> list[dict[str, Any]]:
         """Get attachments from a message."""
-        if not self.connection:
-            raise ConnectionError("Not connected to IMAP server")
-
-        self.select_folder(folder)
-        typ, data = self.connection.fetch(msg_id, "(RFC822)")
-
-        if typ != "OK":
-            raise ConnectionError(f"Failed to fetch message {msg_id}")
-
-        raw_email = data[0][1]
+        raw_email = self.fetch_message_raw(msg_id, folder)
         return self._parse_attachments(raw_email, msg_id)
 
     def _parse_envelope(
@@ -322,6 +481,61 @@ class IMAPAdapter:
         """Return True when string contains non-ASCII chars."""
         return any(ord(char) > 127 for char in value)
 
+    def _decode_imap_status(self, data: Any) -> str:
+        """Decode IMAP status payload into readable text."""
+        if not data:
+            return "no server detail"
+        if isinstance(data, list):
+            values: list[str] = []
+            for item in data:
+                if isinstance(item, bytes):
+                    values.append(item.decode("utf-8", errors="ignore"))
+                else:
+                    values.append(str(item))
+            return " | ".join(values)
+        if isinstance(data, bytes):
+            return data.decode("utf-8", errors="ignore")
+        return str(data)
+
+    def _normalize_flag(self, flag: str) -> str:
+        """Normalize user-facing flags to IMAP flags."""
+        mapping = {
+            "seen": "\\Seen",
+            "flagged": "\\Flagged",
+            "deleted": "\\Deleted",
+        }
+        key = flag.strip().lower().lstrip("\\")
+        if key not in mapping:
+            raise ValueError(
+                f"Unsupported flag '{flag}'. Supported flags: seen, flagged, deleted"
+            )
+        return mapping[key]
+
+    def _resolve_auth_secret(self) -> str | None:
+        """Resolve auth secret from auth.raw or auth.cmd."""
+        if self.account.auth_raw:
+            return self.account.auth_raw
+        if not self.account.auth_cmd:
+            return None
+
+        try:
+            result = subprocess.run(
+                self.account.auth_cmd,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            stderr = (e.stderr or "").strip()
+            detail = f": {stderr}" if stderr else ""
+            raise ConfigError(f"Failed to execute auth.cmd{detail}")
+
+        token = result.stdout.strip()
+        if not token:
+            raise ConfigError("auth.cmd returned empty output")
+        return token
+
     def _parse_message(self, raw_email: bytes, msg_id: str) -> dict[str, Any]:
         """Parse message from raw email."""
         import email
@@ -346,7 +560,7 @@ class IMAPAdapter:
                     decoded.append(str(part))
             return "".join(decoded)
 
-        def get_body(msg: email.message.Message) -> str:
+        def get_body(msg: Any) -> str:
             """Extract body from message."""
             body = ""
             if msg.is_multipart():
@@ -429,8 +643,9 @@ class IMAPAdapter:
                     self.account.imap_port,
                 )
 
-            if self.account.auth_raw:
-                self.connection.login(self.account.email, self.account.auth_raw)
+            secret = self._resolve_auth_secret()
+            if secret:
+                self.connection.login(self.account.email, secret)
 
         except imaplib.IMAP4.error as e:
             raise AuthenticationError(f"IMAP authentication failed: {e}")
@@ -438,6 +653,8 @@ class IMAPAdapter:
             raise TimeoutError("IMAP connection timed out")
         except (socket.error, ssl.SSLError) as e:
             raise ConnectionError(f"IMAP connection failed: {e}")
+        except ConfigError:
+            raise
 
     def disconnect(self) -> None:
         """Disconnect from IMAP server."""
@@ -471,8 +688,9 @@ class SMTPAdapter:
                     self.account.smtp_port,
                 )
 
-            if self.account.auth_raw:
-                self.connection.login(self.account.email, self.account.auth_raw)
+            secret = self._resolve_auth_secret()
+            if secret:
+                self.connection.login(self.account.email, secret)
 
         except smtplib.SMTPAuthenticationError as e:
             raise AuthenticationError(f"SMTP authentication failed: {e}")
@@ -480,6 +698,33 @@ class SMTPAdapter:
             raise TimeoutError("SMTP connection timed out")
         except (socket.error, ssl.SSLError) as e:
             raise ConnectionError(f"SMTP connection failed: {e}")
+        except ConfigError:
+            raise
+
+    def _resolve_auth_secret(self) -> str | None:
+        """Resolve auth secret from auth.raw or auth.cmd."""
+        if self.account.auth_raw:
+            return self.account.auth_raw
+        if not self.account.auth_cmd:
+            return None
+
+        try:
+            result = subprocess.run(
+                self.account.auth_cmd,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            stderr = (e.stderr or "").strip()
+            detail = f": {stderr}" if stderr else ""
+            raise ConfigError(f"Failed to execute auth.cmd{detail}")
+
+        token = result.stdout.strip()
+        if not token:
+            raise ConfigError("auth.cmd returned empty output")
+        return token
 
     def disconnect(self) -> None:
         """Disconnect from SMTP server."""
@@ -490,22 +735,41 @@ class SMTPAdapter:
                 pass
             self.connection = None
 
-    def send_message(self, to: str, subject: str, body: str) -> dict[str, Any]:
+    def send_message(
+        self,
+        to: str | list[str],
+        subject: str,
+        body: str,
+        cc: str | list[str] | None = None,
+    ) -> dict[str, Any]:
         """Send a simple text message."""
         from email.message import EmailMessage
 
+        if not self.connection:
+            raise ConnectionError("Not connected to SMTP server")
+        connection = self.connection
+
+        to_list = [to] if isinstance(to, str) else to
+        cc_list = []
+        if cc:
+            cc_list = [cc] if isinstance(cc, str) else cc
+
         msg = EmailMessage()
         msg["From"] = self.account.email
-        msg["To"] = to
+        msg["To"] = ", ".join(to_list)
+        if cc_list:
+            msg["Cc"] = ", ".join(cc_list)
         msg["Subject"] = subject
         msg.set_content(body)
 
         try:
-            self.connection.send_message(msg)
+            connection.send_message(msg)
+            recipients = to_list + cc_list
             return {
                 "status": "ok",
-                "message": f"Message sent to {to}",
-                "to": to,
+                "message": f"Message sent to {', '.join(recipients)}",
+                "to": to_list,
+                "cc": cc_list,
                 "subject": subject,
             }
         except smtplib.SMTPException as e:

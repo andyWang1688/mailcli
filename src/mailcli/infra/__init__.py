@@ -1,6 +1,6 @@
 """Infrastructure layer."""
 
-from .config import AccountConfig, Config, get_config
+from .config import AccountConfig, Config, get_config, get_config_path
 from .connections import IMAPAdapter, SMTPAdapter, diagnose_account
 from .errors import (
     AuthenticationError,
@@ -15,6 +15,7 @@ from .output import OutputFormatter
 __all__ = [
     "Config",
     "get_config",
+    "get_config_path",
     "OutputFormatter",
     "AuthenticationError",
     "ConfigError",

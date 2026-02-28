@@ -39,7 +39,19 @@ mkdir -p ~/.config/mailcli
 cp config/config.example.toml ~/.config/mailcli/config.toml
 ```
 
-编辑 `~/.config/mailcli/config.toml`，填写邮箱地址和授权码。
+编辑 `~/.config/mailcli/config.toml`，填写邮箱地址和授权信息。
+
+认证支持：
+
+- `auth.raw`：直接写入授权码（推荐先用）
+- `auth.cmd`：通过命令动态读取密钥（适合接入系统钥匙串）
+
+多服务商支持：`exmail`、`gmail`、`m365`。可用模板命令快速生成片段：
+
+```bash
+mailcli template list-providers
+mailcli template render --provider gmail --account gmail-main --email your.name@gmail.com
+```
 
 ## 4. 常用命令
 
@@ -50,7 +62,9 @@ mailcli folder list -a exmail-main
 mailcli envelope list -a exmail-main -f INBOX -l 10
 mailcli envelope search -a exmail-main -f INBOX "UNSEEN"
 mailcli message read -a exmail-main -f INBOX <msg_id>
+mailcli message export -a exmail-main -f INBOX -o ./exports/mail.eml <msg_id>
 mailcli message send -a exmail-main -t you@example.com -s "mailcli test" -b "hello"
+mailcli flag add -a exmail-main -f INBOX --flag seen <msg_id>
 mailcli attachment list -a exmail-main -f INBOX <msg_id>
 mailcli attachment download -a exmail-main -f INBOX -o ./downloads <msg_id> <filename>
 ```

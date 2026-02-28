@@ -80,3 +80,30 @@ git push origin v0.1.0
 - tag 和 `pyproject.toml` 版本不一致：工作流会失败
 - 未配置 `PYPI_API_TOKEN`：发布步骤会失败
 - 包名冲突：PyPI 会拒绝上传（当前包名为 `exmail-cli`）
+
+## 6. Homebrew Tap 发布
+
+仓库已提供 tap formula 模板：`Formula/mailcli.rb`。
+
+推荐流程：
+
+1. 版本发布后，计算 release tarball 的 sha256。
+2. 更新 `Formula/mailcli.rb` 中 `url` 和 `sha256`。
+3. 在 tap 仓库提交 formula 并打 tag。
+
+用户安装方式：
+
+```bash
+brew tap andyWang1688/mailcli
+brew install mailcli
+```
+
+## 7. 是否提交 homebrew/core（评估结论）
+
+当前结论：先维护独立 tap，暂不提交 homebrew/core。
+
+原因：
+
+- 版本迭代频率较高，独立 tap 更灵活。
+- 项目仍在 v0.x 阶段，配方字段和依赖可能频繁变化。
+- 先稳定两个小版本后再评估进入 homebrew/core，降低维护负担。

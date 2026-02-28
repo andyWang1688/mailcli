@@ -34,6 +34,13 @@ cp config/config.example.toml ~/.config/mailcli/config.toml
 
 Then edit `~/.config/mailcli/config.toml` with your account info.
 
+Authentication supports both:
+
+- `auth.raw`: inline app password/token
+- `auth.cmd`: run command to fetch secret at runtime
+
+Built-in provider templates: `exmail`, `gmail`, `m365`.
+
 ## Quick Usage
 
 ```bash

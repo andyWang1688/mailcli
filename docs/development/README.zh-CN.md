@@ -7,6 +7,7 @@
 - Git 使用规范：`docs/development/git-workflow.zh-CN.md`
 - 发布流程：`docs/development/RELEASING.zh-CN.md`
 - 目录结构：`docs/development/architecture/project-structure.zh-CN.md`
+- 重构评估：`docs/development/architecture/go-rust-evaluation.zh-CN.md`
 
 ## 项目协作约定
 
