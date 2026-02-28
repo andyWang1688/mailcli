@@ -1,142 +1,67 @@
 # Mail CLI
 
-Mail CLI - An open-source email command-line tool for managing emails from the terminal.
+Mail CLI is an open-source terminal email tool.
 
-## Documentation
+## Install
 
-- Chinese product standard doc: `docs/README.zh-CN.md`
-- Chinese command reference: `docs/COMMANDS.zh-CN.md`
-- Release guide (Chinese): `docs/RELEASING.zh-CN.md`
-- Changelog: `CHANGELOG.md`
-- Requirements issues: `https://github.com/andyWang1688/mailcli/issues?q=is%3Aissue+is%3Aopen+label%3Arequirement`
-- Bug issues: `https://github.com/andyWang1688/mailcli/issues?q=is%3Aissue+label%3Abug`
-
-## Quick Start
-
-### Installation
-
-Preferred installation method: `pip` direct install.
-
-#### Option A: Install from PyPI (target release channel)
+Use `pip`:
 
 ```bash
 pip install exmail-cli
 ```
 
-After publishing to PyPI, this is the recommended way for all users.
-The installed CLI command remains `mailcli`.
-
-Publishing strategy: merge to `main` does not publish; pushing a version tag like `v0.1.0` publishes to PyPI.
-
-#### Option B: Install from local source (current development stage)
+Or install from source:
 
 ```bash
-cd ~/Downloads/mailcli
 python3.13 -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
 pip install .
 ```
 
-Verify installation:
+Verify:
 
 ```bash
 mailcli --help
 ```
 
-### Configuration
-
-Copy the example configuration to your home directory:
+## Configure
 
 ```bash
 mkdir -p ~/.config/mailcli
 cp config/config.example.toml ~/.config/mailcli/config.toml
 ```
 
-Edit the configuration file with your email account details:
+Then edit `~/.config/mailcli/config.toml` with your account info.
 
-```toml
-default_account = "exmail-main"
+Authentication supports both:
 
-[accounts.exmail-main]
-email = "your.name@example.com"
-use_ssl = true
+- `auth.raw`: inline app password/token
+- `auth.cmd`: run command to fetch secret at runtime
 
-[accounts.exmail-main.imap]
-host = "imap.exmail.qq.com"
-port = 993
+Built-in provider templates: `exmail`, `gmail`, `m365`.
 
-[accounts.exmail-main.smtp]
-host = "smtp.exmail.qq.com"
-port = 465
+## Quick Usage
 
-[accounts.exmail-main.auth]
-raw = "your_app_password_or_token"
-# cmd = "security find-generic-password -w -s mailcli-exmail-token"
-
-[quirks]
-provider = "exmail"
-```
-
-## Usage
-
-Detailed command guide (Chinese):
-
-- `docs/COMMANDS.zh-CN.md`
-
-## Architecture
-
-- `docs/plan/`: execution plans and milestones
-- `docs/architecture/`: architecture and directory conventions
-- `src/mailcli/core/`: business logic
-- `src/mailcli/infra/`: infrastructure (IMAP/SMTP, config, output)
-- `tests/`: unit and integration tests
-
-## Development
-
-Run tests:
 ```bash
-source .venv/bin/activate
-python -m pytest tests/ -v
-
-# Or use the test script
-./test.sh
+mailcli account list
+mailcli account diagnose exmail-main
+mailcli folder list -a exmail-main
+mailcli envelope list -a exmail-main -f INBOX -l 10
+mailcli message read -a exmail-main -f INBOX <msg_id>
+mailcli message send -a exmail-main -t you@example.com -s "hello" -b "hi"
+mailcli attachment download -a exmail-main -f INBOX -o ./downloads <msg_id> <filename>
 ```
 
-See [TESTING.md](docs/TESTING.md) for detailed test coverage.
+Use JSON output for automation:
 
-## Current Status (v0.1)
+```bash
+mailcli --output json envelope search -a exmail-main -f INBOX "UNSEEN"
+```
 
-### Completed (M1-M4)
-- **M1: CLI + Config + Diagnostics**
-  - CLI framework with command groups
-  - Configuration loading (TOML)
-  - Error handling and output formatting (plain/json)
-  - IMAP/SMTP connection adapters
-  - Account management (list, default, diagnose)
+## Documentation
 
-- **M2: IMAP Operations**
-  - Envelope list/search (sort, pagination, thread view)
-  - Folder list/create/delete/expunge/purge
-  - Message read/export/copy/move/delete
-  - Attachment list and download
-
-- **M3: SMTP Operations**
-  - Message send/write/reply/forward
-
-- **M4: Engineering + Templates**
-  - auth.raw and auth.cmd authentication
-  - Flag add/remove (`seen`, `flagged`)
-  - Provider templates (`exmail`, `gmail`, `m365`)
-  - Account default switch persists to config file
-
-### Summary
-- 15+ Python source files
-- 53 tests (unit + integration)
-- Exmail/Gmail/M365 config templates with IMAP/SMTP workflows
-- All core commands support `--output json`
-
-### Next Steps
-- HTML email support
-- Multiple attachments
-- OAuth2 authentication
+- User guide (Chinese): `docs/user/README.zh-CN.md`
+- Command reference (Chinese): `docs/user/COMMANDS.zh-CN.md`
+- Changelog: `CHANGELOG.md`
+- Development docs: `docs/development/README.zh-CN.md`
