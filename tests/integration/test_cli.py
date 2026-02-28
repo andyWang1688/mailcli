@@ -25,6 +25,8 @@ def test_cli_help():
     assert "envelope" in result.stdout
     assert "message" in result.stdout
     assert "attachment" in result.stdout
+    assert "flag" in result.stdout
+    assert "template" in result.stdout
 
 
 def test_cli_account_help():
@@ -70,6 +72,10 @@ def test_cli_folder_help():
     )
     assert result.returncode == 0
     assert "list" in result.stdout
+    assert "create" in result.stdout
+    assert "delete" in result.stdout
+    assert "expunge" in result.stdout
+    assert "purge" in result.stdout
 
 
 def test_cli_message_help():
@@ -84,7 +90,14 @@ def test_cli_message_help():
     )
     assert result.returncode == 0
     assert "read" in result.stdout
+    assert "write" in result.stdout
     assert "send" in result.stdout
+    assert "export" in result.stdout
+    assert "reply" in result.stdout
+    assert "forward" in result.stdout
+    assert "copy" in result.stdout
+    assert "move" in result.stdout
+    assert "delete" in result.stdout
 
 
 def test_cli_attachment_help():
@@ -102,6 +115,21 @@ def test_cli_attachment_help():
     assert "download" in result.stdout
 
 
+def test_cli_template_help():
+    """Test template command help."""
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, "-m", "mailcli", "template", "--help"],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONPATH": "src"},
+    )
+    assert result.returncode == 0
+    assert "list-providers" in result.stdout
+    assert "render" in result.stdout
+
+
 def test_cli_account_list_no_config():
     """Test account list without configuration."""
     import subprocess
@@ -111,7 +139,7 @@ def test_cli_account_list_no_config():
             [sys.executable, "-m", "mailcli", "account", "list"],
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": "", "HOME": tmpdir},
+            env={**os.environ, "PYTHONPATH": "src", "HOME": tmpdir},
         )
         assert result.returncode != 0
         assert "Error" in result.stderr or "Configuration Error" in result.stderr

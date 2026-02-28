@@ -100,8 +100,8 @@ def test_envelope_list_success(mock_config, mock_imap_response):
             result = envelope_list("test-account", "INBOX", 50)
 
             assert len(result) == 2
-            assert result[0]["subject"] == "Test Email 1"
-            assert result[1]["subject"] == "Test Email 2"
+            assert result[0]["subject"] == "Test Email 2"
+            assert result[1]["subject"] == "Test Email 1"
             mock_adapter.connect.assert_called_once()
             mock_adapter.disconnect.assert_called_once()
 
@@ -218,9 +218,9 @@ def test_attachment_download_success(mock_config):
         msg["Content-Type"] = "application/pdf"
         msg["Content-Disposition"] = 'attachment; filename="document.pdf"'
         msg.set_payload(b"fake pdf content")
-        return ("OK", [("", msg.as_bytes())])
+        return msg.as_bytes()
 
-    mock_adapter.connection.fetch = mock_fetch
+    mock_adapter.fetch_message_raw = mock_fetch
 
     with tempfile.TemporaryDirectory() as tmpdir:
         with patch("src.mailcli.core.attachment.get_config", return_value=mock_config):
@@ -312,9 +312,9 @@ def test_attachment_not_found(mock_config):
 
         msg = EmailMessage()
         msg.set_content("No attachments")
-        return ("OK", [("", msg.as_bytes())])
+        return msg.as_bytes()
 
-    mock_adapter.connection.fetch = mock_fetch
+    mock_adapter.fetch_message_raw = mock_fetch
 
     with tempfile.TemporaryDirectory() as tmpdir:
         with patch("src.mailcli.core.attachment.get_config", return_value=mock_config):
@@ -359,6 +359,7 @@ def test_imap_adapter_select_folder():
             adapter = IMAPAdapter(account)
             with patch.object(adapter, "connection"):
                 adapter.connection = MagicMock()
+                adapter.connection.select.return_value = ("OK", [b""])
                 adapter.select_folder("INBOX")
                 adapter.connection.select.assert_called_once_with("INBOX")
 
@@ -382,6 +383,7 @@ def test_imap_adapter_select_folder_with_chinese_name():
             adapter = IMAPAdapter(account)
             with patch.object(adapter, "connection"):
                 adapter.connection = MagicMock()
+                adapter.connection.select.return_value = ("OK", [b""])
                 folder_name = "其他文件夹/穆桥"
                 adapter.select_folder(folder_name)
 
@@ -498,3 +500,83 @@ def test_imap_adapter_parse_envelope_extracts_fields():
     assert envelope["to"]
     assert envelope["date"].startswith("Fri, 14 Feb 2026")
     assert envelope["size"] == 321
+
+
+def test_folder_create_success(mock_config):
+    """Test folder creation calls adapter API."""
+    from src.mailcli.core.folder import folder_create
+
+    mock_adapter = MagicMock()
+    mock_adapter.create_folder.return_value = {
+        "status": "ok",
+        "folder": "Archive",
+        "action": "create",
+    }
+
+    with patch("src.mailcli.core.folder.get_config", return_value=mock_config):
+        with patch("src.mailcli.core.folder.IMAPAdapter", return_value=mock_adapter):
+            result = folder_create("test-account", "Archive")
+
+            assert result["status"] == "ok"
+            mock_adapter.create_folder.assert_called_once_with("Archive")
+
+
+def test_message_write_creates_eml_file():
+    """Test local draft write outputs eml file."""
+    from src.mailcli.core.message import message_write
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = Path(tmpdir) / "draft.eml"
+        result = message_write(
+            to="recipient@example.com",
+            subject="Draft",
+            body="Hello",
+            output_path=str(output),
+            cc="cc@example.com",
+        )
+
+        assert result["status"] == "ok"
+        assert output.exists()
+        content = output.read_text(encoding="utf-8", errors="ignore")
+        assert "Subject: Draft" in content
+        assert "To: recipient@example.com" in content
+
+
+def test_template_render_account_contains_provider_defaults():
+    """Test template rendering for provider account."""
+    from src.mailcli.core.template import template_render_account
+
+    result = template_render_account("gmail", "gmail-main", "user@gmail.com")
+    snippet = result["snippet"]
+
+    assert result["provider"] == "gmail"
+    assert "imap.gmail.com" in snippet
+    assert "smtp.gmail.com" in snippet
+
+
+def test_smtp_adapter_uses_auth_cmd_when_raw_missing():
+    """Test SMTP adapter resolves auth token from auth.cmd."""
+    from src.mailcli.infra.config import AccountConfig
+    from src.mailcli.infra.connections import SMTPAdapter
+
+    account = AccountConfig(
+        name="test",
+        email="user@example.com",
+        imap_host="imap.example.com",
+        imap_port=993,
+        smtp_host="smtp.example.com",
+        smtp_port=465,
+        auth_raw=None,
+        auth_cmd="printf secret-token",
+    )
+
+    with patch("subprocess.run") as mock_run:
+        with patch("smtplib.SMTP_SSL") as mock_smtp_ssl:
+            mock_run.return_value = MagicMock(stdout="secret-token\n")
+            mock_conn = MagicMock()
+            mock_smtp_ssl.return_value = mock_conn
+
+            adapter = SMTPAdapter(account)
+            adapter.connect()
+
+            mock_conn.login.assert_called_once_with("user@example.com", "secret-token")

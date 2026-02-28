@@ -48,7 +48,19 @@ mkdir -p ~/.config/mailcli
 cp config/config.example.toml ~/.config/mailcli/config.toml
 ```
 
-编辑 `~/.config/mailcli/config.toml`，填写真实邮箱地址和授权码。
+编辑 `~/.config/mailcli/config.toml`，填写真实邮箱地址和授权信息。
+
+认证支持：
+
+- `auth.raw`：直接写入授权码（推荐先用）
+- `auth.cmd`：通过命令动态读取密钥（适合接入系统钥匙串）
+
+多服务商支持：`exmail`、`gmail`、`m365`。可用模板命令快速生成片段：
+
+```bash
+mailcli template list-providers
+mailcli template render --provider gmail --account gmail-main --email your.name@gmail.com
+```
 
 ## 4. 快速测试顺序
 
@@ -59,7 +71,9 @@ mailcli --output json folder list -a exmail-main
 mailcli --output json envelope list -a exmail-main -f INBOX -l 10
 mailcli --output json envelope search -a exmail-main -f INBOX "ALL"
 mailcli --output json message read -a exmail-main -f INBOX <msg_id>
+mailcli --output json message export -a exmail-main -f INBOX -o ./exports/mail.eml <msg_id>
 mailcli --output json message send -a exmail-main -t you@example.com -s "mailcli test" -b "hello"
+mailcli --output json flag add -a exmail-main -f INBOX --flag seen <msg_id>
 mailcli --output json attachment list -a exmail-main -f INBOX <msg_id>
 mailcli --output json attachment download -a exmail-main -f INBOX -o ./downloads <msg_id> <filename>
 ```

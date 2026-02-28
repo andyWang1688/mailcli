@@ -72,6 +72,7 @@ port = 465
 
 [accounts.exmail-main.auth]
 raw = "your_app_password_or_token"
+# cmd = "security find-generic-password -w -s mailcli-exmail-token"
 
 [quirks]
 provider = "exmail"
@@ -88,7 +89,6 @@ Detailed command guide (Chinese):
 - `docs/plan/`: execution plans and milestones
 - `docs/architecture/`: architecture and directory conventions
 - `src/mailcli/core/`: business logic
-- `src/mailcli/providers/`: provider-specific quirks (e.g., Exmail)
 - `src/mailcli/infra/`: infrastructure (IMAP/SMTP, config, output)
 - `tests/`: unit and integration tests
 
@@ -107,7 +107,7 @@ See [TESTING.md](docs/TESTING.md) for detailed test coverage.
 
 ## Current Status (v0.1)
 
-### Completed (M1-M3)
+### Completed (M1-M4)
 - **M1: CLI + Config + Diagnostics**
   - CLI framework with command groups
   - Configuration loading (TOML)
@@ -116,23 +116,27 @@ See [TESTING.md](docs/TESTING.md) for detailed test coverage.
   - Account management (list, default, diagnose)
 
 - **M2: IMAP Operations**
-  - Envelope list and search
-  - Message read
+  - Envelope list/search (sort, pagination, thread view)
+  - Folder list/create/delete/expunge/purge
+  - Message read/export/copy/move/delete
   - Attachment list and download
 
 - **M3: SMTP Operations**
-  - Message send
+  - Message send/write/reply/forward
+
+- **M4: Engineering + Templates**
+  - auth.raw and auth.cmd authentication
+  - Flag add/remove (`seen`, `flagged`)
+  - Provider templates (`exmail`, `gmail`, `m365`)
+  - Account default switch persists to config file
 
 ### Summary
-- 13 Python source files (~1200 lines)
-- 3 test files with 14 tests
-- Full support for Exmail IMAP/SMTP workflows
+- 15+ Python source files
+- 53 tests (unit + integration)
+- Exmail/Gmail/M365 config templates with IMAP/SMTP workflows
 - All core commands support `--output json`
 
 ### Next Steps
-- Additional provider support (Gmail, M365)
-- Folder management
-- Flag operations
-- Message operations (write, reply, forward)
 - HTML email support
 - Multiple attachments
+- OAuth2 authentication

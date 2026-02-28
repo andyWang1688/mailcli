@@ -25,6 +25,7 @@ class AccountConfig:
     smtp_host: str
     smtp_port: int
     auth_raw: str | None = None
+    auth_cmd: str | None = None
     use_ssl: bool = True
 
 
@@ -47,8 +48,7 @@ class Config:
 
 def get_config() -> Config:
     """Load configuration from default path."""
-    config_dir = Path.home() / ".config" / "mailcli"
-    config_path = config_dir / "config.toml"
+    config_path = get_config_path()
 
     if not config_path.exists():
         raise FileNotFoundError(
@@ -64,6 +64,7 @@ def get_config() -> Config:
 
     accounts = {}
     for name, acc in data.get("accounts", {}).items():
+        auth_cfg = acc.get("auth", {})
         accounts[name] = AccountConfig(
             name=name,
             email=acc["email"],
@@ -71,7 +72,8 @@ def get_config() -> Config:
             imap_port=acc["imap"]["port"],
             smtp_host=acc["smtp"]["host"],
             smtp_port=acc["smtp"]["port"],
-            auth_raw=acc.get("auth", {}).get("raw"),
+            auth_raw=auth_cfg.get("raw"),
+            auth_cmd=auth_cfg.get("cmd"),
             use_ssl=acc.get("use_ssl", True),
         )
 
@@ -80,3 +82,8 @@ def get_config() -> Config:
         default_account=data.get("default_account"),
         quirks=data.get("quirks"),
     )
+
+
+def get_config_path() -> Path:
+    """Return default config file path."""
+    return Path.home() / ".config" / "mailcli" / "config.toml"

@@ -125,3 +125,36 @@ def test_config_file_not_found():
                 get_config()
         finally:
             os.environ["HOME"] = str(original_home)
+
+
+def test_get_config_supports_auth_cmd(monkeypatch):
+    """Test loading auth.cmd from config file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_dir = Path(tmpdir) / ".config" / "mailcli"
+        config_dir.mkdir(parents=True)
+        config_path = config_dir / "config.toml"
+        config_path.write_text(
+            """
+default_account = "test"
+
+[accounts.test]
+email = "test@example.com"
+
+[accounts.test.imap]
+host = "imap.example.com"
+port = 993
+
+[accounts.test.smtp]
+host = "smtp.example.com"
+port = 465
+
+[accounts.test.auth]
+cmd = "printf token"
+""".strip(),
+            encoding="utf-8",
+        )
+
+        monkeypatch.setenv("HOME", tmpdir)
+        cfg = get_config()
+        assert cfg.accounts["test"].auth_raw is None
+        assert cfg.accounts["test"].auth_cmd == "printf token"
